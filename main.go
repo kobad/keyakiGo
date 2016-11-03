@@ -1,46 +1,66 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"net/http"
 	"os"
-	"regexp"
 	"time"
 )
 
-var baseURL = "http://www.keyakizaka46.com/"
+var memberList = map[string]string{
+	"ishimori":  "01",
+	"zu-min":    "02",
+	"uemu-":     "03",
+	"ozeki":     "04",
+	"odanana":   "05",
+	"koike":     "06",
+	"kobayashi": "07",
+	"fu-chan":   "08",
+	"si-chan":   "09",
+	"mona":      "10",
+	"yukka":     "11",
+	"kuritarou": "12",
+	"na-ko":     "13",
+	"habu":      "14",
+	"aoi":       "15",
+	"techi":     "17",
+	"moriya":    "18",
+	"yonesan":   "19",
+	"berika":    "20",
+	"berisa":    "21",
+	"neru":      "22"}
+var baseURL = "http://www.keyakizaka46.com"
 var t = time.Now()
+var targetName = ""
 
-const layout = "2006-01-02"
+const layout = "2006-01-01"
 
 func main() {
-
-	if err := os.Mkdir(t.Format(layout), 0777); err != nil {
-		fmt.Println(err)
-	}
-	//targetURL := "http://www.keyakizaka46.com/mob/news/diarShw.php?site=k46o&ima=0000&cd=member"
-	targetURL := "http://www.keyakizaka46.com/mob/news/diarKiji.php?site=k46o&ima=0000&cd=member&ct=21"
-	doc, err := goquery.NewDocument(targetURL)
 	fmt.Println("Go-keyaki")
+	flag.Parse()
+	targetName = flag.Arg(0)
+	number := memberList[flag.Arg(0)]
+	targetURL := "http://www.keyakizaka46.com/mob/news/diarKiji.php?site=k46o&ima=0000&cd=member&ct=" + number
+
+	doc, err := goquery.NewDocument(targetURL)
 	if err != nil {
 		fmt.Println("url scrapping failed")
 	}
-	fmt.Println("Start Scrapping")
 
-	doc.Find("a").Each(func(_ int, s *goquery.Selection) {
-		url, _ := s.Attr("href")
-		r := regexp.MustCompile(`diarKiji.php`)
-		if r.MatchString(url) {
-		}
-	})
+	if err := os.Mkdir(targetName+t.Format(layout), 0777); err != nil {
+		fmt.Println(err)
+	}
 
-	doc.Find("img").Each(func(i int, s *goquery.Selection) {
-		dataURL, _ := s.Attr("data-url")
-		imgURL, _ := s.Attr("src")
-		url := baseURL + dataURL + imgURL
-		saveIMG(url, i)
+	doc.Find("article").Each(func(i int, s *goquery.Selection) {
+		s.Children().Find("img").Each(func(_ int, arg1 *goquery.Selection) {
+			url, _ := arg1.Attr("src")
+			imgURL := baseURL + url
+			fmt.Println("Get: " + imgURL)
+			saveIMG(imgURL, i)
+		})
 	})
 }
 
@@ -51,7 +71,7 @@ func saveIMG(url string, i int) {
 	}
 	defer response.Body.Close()
 
-	file, err := os.Create(fmt.Sprintf(t.Format(layout)+"/keyaki%d.jpg", i))
+	file, err := os.Create(fmt.Sprintf(targetName+t.Format(layout)+"/%s%d.jpg", targetName, i))
 	if err != nil {
 		panic(err)
 	}
