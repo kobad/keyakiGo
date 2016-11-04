@@ -3,11 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"io"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 var memberList = map[string]string{
@@ -47,11 +48,13 @@ func main() {
 
 	doc, err := goquery.NewDocument(targetURL)
 	if err != nil {
-		fmt.Println("url scrapping failed")
+		fmt.Fprintln(os.Stderr, "url scrapping failed")
+		os.Exit(1)
 	}
 
 	if err := os.Mkdir(targetName+t.Format(layout), 0777); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	doc.Find("article").Each(func(i int, s *goquery.Selection) {
@@ -59,22 +62,27 @@ func main() {
 			url, _ := arg1.Attr("src")
 			imgURL := baseURL + url
 			fmt.Println("Get: " + imgURL)
-			saveIMG(imgURL, i)
+			if err := saveIMG(imgURL, i); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
 		})
 	})
 }
 
-func saveIMG(url string, i int) {
+func saveIMG(url string, i int) error {
 	response, err := http.Get(url)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer response.Body.Close()
 
 	file, err := os.Create(fmt.Sprintf(targetName+t.Format(layout)+"/%s%d.jpg", targetName, i))
 	if err != nil {
-		panic(err)
+		return err
 	}
 	defer file.Close()
 	io.Copy(file, response.Body)
+
+	return nil
 }
